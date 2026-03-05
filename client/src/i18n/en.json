@@ -1,0 +1,7 @@
+﻿{
+  "appName": "ReceiptAI Pro",
+  "tabs": { "dashboard": "Dashboard", "scan": "Scan", "insights": "Insights", "reports": "Reports", "settings": "Settings" },
+  "dashboard": { "scanReceipt": "Scan Receipt", "snap": "Snap & categorize instantly", "recentScans": "Recent Scans", "seeAll": "See All" },
+  "settings": { "title": "Settings", "language": "Language", "privacy": "Privacy", "support": "Support" },
+  "paywall": { "title": "Go Pro", "trial": "3 free scans, then .99/month", "cta": "Subscribe" }
+}

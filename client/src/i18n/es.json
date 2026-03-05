@@ -1,0 +1,7 @@
+﻿{
+  "appName": "ReceiptAI Pro",
+  "tabs": { "dashboard": "Inicio", "scan": "Escanear", "insights": "Insights", "reports": "Reportes", "settings": "Ajustes" },
+  "dashboard": { "scanReceipt": "Escanear recibo", "snap": "Toma la foto y categoriza al instante", "recentScans": "Recibos recientes", "seeAll": "Ver todo" },
+  "settings": { "title": "Ajustes", "language": "Idioma", "privacy": "Privacidad", "support": "Soporte" },
+  "paywall": { "title": "Hazte Pro", "trial": "3 escaneos gratis, luego .99/mes", "cta": "Suscribirse" }
+}

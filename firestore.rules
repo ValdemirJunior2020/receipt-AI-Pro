@@ -1,0 +1,30 @@
+﻿rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+
+    match /users/{uid} {
+      allow read, write: if isOwner(uid);
+
+      match /receipts/{receiptId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      match /usage/{monthId} {
+        allow read, write: if isOwner(uid);
+      }
+    }
+
+    match /exports/{exportId} {
+      allow read, write: if isSignedIn() && request.auth.uid == resource.data.uid;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+    }
+
+    match /teams/{teamId} {
+      allow read: if isSignedIn();
+      allow write: if false; // MVP: lock down until team logic is implemented
+    }
+  }
+}
