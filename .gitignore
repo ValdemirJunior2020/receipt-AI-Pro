@@ -158,3 +158,10 @@ json.json
 **/json.json
 .env
 .env.*
+# secrets (never commit)
+secrets/
+**/secrets/
+json.json
+**/json.json
+.env
+.env.*
