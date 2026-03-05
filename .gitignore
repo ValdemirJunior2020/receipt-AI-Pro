@@ -144,4 +144,17 @@ vite.config.ts.timestamp-*
 .vite/
 
 # Expo files
-.expo/
+.expo/# secrets
+secrets/
+**/secrets/
+json.json
+**/json.json
+.env
+.env.*
+# secrets (never commit)
+secrets/
+**/secrets/
+json.json
+**/json.json
+.env
+.env.*
