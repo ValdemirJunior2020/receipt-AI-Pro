@@ -1,4 +1,5 @@
-﻿import React, { useMemo, useState } from "react";
+﻿// File: client/app/(auth)/login.tsx
+import React, { useMemo, useState } from "react";
 import { Link, router } from "expo-router";
 import {
   Alert,
@@ -16,18 +17,21 @@ import { auth } from "../../src/lib/firebase/client";
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const canSubmit = useMemo(() => {
-    return email.trim().length > 3 && password.length >= 6;
-  }, [email, password]);
+    return email.trim().length > 3 && password.length >= 6 && !busy;
+  }, [email, password, busy]);
 
   async function onLogin() {
     try {
-      const e = email.trim();
-      await signInWithEmailAndPassword(auth, e, password);
-      router.replace("/"); // goes to app/index.tsx (or your main group)
+      setBusy(true);
+      await signInWithEmailAndPassword(auth, email.trim(), password);
+      router.replace("/dashboard");
     } catch (err: any) {
       Alert.alert("Login failed", err?.message ?? "Unknown error");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -71,11 +75,11 @@ export default function LoginScreen() {
             pressed && canSubmit && styles.buttonPressed,
           ]}
         >
-          <Text style={styles.buttonText}>Login</Text>
+          <Text style={styles.buttonText}>{busy ? "Logging in..." : "Login"}</Text>
         </Pressable>
 
         <Text style={styles.footerText}>
-          Don’t have an account?{" "}
+          Don&apos;t have an account?{" "}
           <Link href="/signup" style={styles.link}>
             Create one
           </Link>
@@ -88,7 +92,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: "#0b1220",
+    backgroundColor: "#071221",
     alignItems: "center",
     justifyContent: "center",
     padding: 16,
@@ -96,7 +100,7 @@ const styles = StyleSheet.create({
   card: {
     width: "100%",
     maxWidth: 420,
-    backgroundColor: "#111a2e",
+    backgroundColor: "#0d1a34",
     borderRadius: 16,
     padding: 18,
     borderWidth: 1,
@@ -126,12 +130,12 @@ const styles = StyleSheet.create({
     borderColor: "#263556",
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: "white",
-    backgroundColor: "#0e1730",
+    color: "#071221",
+    backgroundColor: "#e9eef7",
   },
   button: {
     marginTop: 14,
-    backgroundColor: "#4f46e5",
+    backgroundColor: "#4037b7",
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: "center",

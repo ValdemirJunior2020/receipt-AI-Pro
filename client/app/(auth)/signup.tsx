@@ -1,4 +1,5 @@
-﻿import React, { useMemo, useState } from "react";
+﻿// File: client/app/(auth)/signup.tsx
+import React, { useMemo, useState } from "react";
 import { Link, router } from "expo-router";
 import {
   Alert,
@@ -16,18 +17,21 @@ import { auth } from "../../src/lib/firebase/client";
 export default function SignupScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const canSubmit = useMemo(() => {
-    return email.trim().length > 3 && password.length >= 6;
-  }, [email, password]);
+    return email.trim().length > 3 && password.length >= 6 && !busy;
+  }, [email, password, busy]);
 
   async function onSignup() {
     try {
-      const e = email.trim();
-      await createUserWithEmailAndPassword(auth, e, password);
-      router.replace("/");
+      setBusy(true);
+      await createUserWithEmailAndPassword(auth, email.trim(), password);
+      router.replace("/dashboard");
     } catch (err: any) {
       Alert.alert("Sign up failed", err?.message ?? "Unknown error");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -51,7 +55,7 @@ export default function SignupScreen() {
           style={styles.input}
         />
 
-        <Text style={styles.label}>Password (min 6)</Text>
+        <Text style={styles.label}>Password</Text>
         <TextInput
           value={password}
           onChangeText={setPassword}
@@ -70,7 +74,7 @@ export default function SignupScreen() {
             pressed && canSubmit && styles.buttonPressed,
           ]}
         >
-          <Text style={styles.buttonText}>Sign up</Text>
+          <Text style={styles.buttonText}>{busy ? "Creating..." : "Create account"}</Text>
         </Pressable>
 
         <Text style={styles.footerText}>
@@ -87,7 +91,7 @@ export default function SignupScreen() {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: "#0b1220",
+    backgroundColor: "#071221",
     alignItems: "center",
     justifyContent: "center",
     padding: 16,
@@ -95,7 +99,7 @@ const styles = StyleSheet.create({
   card: {
     width: "100%",
     maxWidth: 420,
-    backgroundColor: "#111a2e",
+    backgroundColor: "#0d1a34",
     borderRadius: 16,
     padding: 18,
     borderWidth: 1,
@@ -103,9 +107,9 @@ const styles = StyleSheet.create({
   },
   title: {
     color: "white",
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "800",
-    marginBottom: 12,
+    marginBottom: 14,
   },
   label: {
     color: "#cbd5e1",
@@ -121,12 +125,12 @@ const styles = StyleSheet.create({
     borderColor: "#263556",
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: "white",
-    backgroundColor: "#0e1730",
+    color: "#071221",
+    backgroundColor: "#e9eef7",
   },
   button: {
     marginTop: 14,
-    backgroundColor: "#22c55e",
+    backgroundColor: "#19b46b",
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: "center",
@@ -138,8 +142,8 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   buttonText: {
-    color: "#052e14",
-    fontWeight: "900",
+    color: "white",
+    fontWeight: "800",
     fontSize: 15,
   },
   footerText: {
