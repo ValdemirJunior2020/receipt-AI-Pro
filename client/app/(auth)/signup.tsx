@@ -11,8 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../../src/lib/firebase/client";
+import { signup } from "../../src/lib/firebase/auth";
 
 export default function SignupScreen() {
   const [email, setEmail] = useState("");
@@ -26,10 +25,11 @@ export default function SignupScreen() {
   async function onSignup() {
     try {
       setBusy(true);
-      await createUserWithEmailAndPassword(auth, email.trim(), password);
+      await signup(email, password);
       router.replace("/dashboard");
     } catch (err: any) {
-      Alert.alert("Sign up failed", err?.message ?? "Unknown error");
+      Alert.alert("Sign up failed", err?.message || "Something went wrong.");
+      console.error("SIGNUP ERROR:", err);
     } finally {
       setBusy(false);
     }
@@ -74,7 +74,9 @@ export default function SignupScreen() {
             pressed && canSubmit && styles.buttonPressed,
           ]}
         >
-          <Text style={styles.buttonText}>{busy ? "Creating..." : "Create account"}</Text>
+          <Text style={styles.buttonText}>
+            {busy ? "Creating..." : "Create account"}
+          </Text>
         </Pressable>
 
         <Text style={styles.footerText}>
@@ -105,12 +107,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#1f2a44",
   },
-  title: {
-    color: "white",
-    fontSize: 22,
-    fontWeight: "800",
-    marginBottom: 14,
-  },
+  title: { color: "white", fontSize: 22, fontWeight: "800", marginBottom: 14 },
   label: {
     color: "#cbd5e1",
     marginTop: 10,
@@ -135,24 +132,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
   },
-  buttonPressed: {
-    opacity: 0.9,
-  },
-  buttonDisabled: {
-    opacity: 0.45,
-  },
-  buttonText: {
-    color: "white",
-    fontWeight: "800",
-    fontSize: 15,
-  },
+  buttonPressed: { opacity: 0.9 },
+  buttonDisabled: { opacity: 0.45 },
+  buttonText: { color: "white", fontWeight: "800", fontSize: 15 },
   footerText: {
     color: "#94a3b8",
     marginTop: 14,
     textAlign: "center",
   },
-  link: {
-    color: "#a5b4fc",
-    fontWeight: "800",
-  },
+  link: { color: "#a5b4fc", fontWeight: "800" },
 });

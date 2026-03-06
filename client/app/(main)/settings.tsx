@@ -1,6 +1,7 @@
 ﻿// File: client/app/(main)/settings.tsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   Pressable,
@@ -9,18 +10,36 @@ import {
   Text,
   TextInput,
   View,
-  ActivityIndicator,
 } from "react-native";
 import { router } from "expo-router";
 import { auth } from "../../src/lib/firebase/client";
-import { logout, deleteAccountWithPassword } from "../../src/lib/firebase/auth";
+import {
+  deleteAccountWithPassword,
+  logout,
+} from "../../src/lib/firebase/auth";
+import { getUserProfile } from "../../src/lib/firebase/users";
 
 export default function SettingsScreen() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [plan, setPlan] = useState<"free" | "pro">("free");
 
   const email = auth.currentUser?.email || "No email";
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const uid = auth.currentUser?.uid;
+      if (!uid) return;
+      const profile = await getUserProfile(uid);
+      if (!alive || !profile) return;
+      setPlan(profile.plan);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   async function onLogout() {
     try {
@@ -65,14 +84,17 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <Text style={styles.label}>Signed in as</Text>
           <Text style={styles.value}>{email}</Text>
+
+          <Text style={[styles.label, { marginTop: 14 }]}>Current plan</Text>
+          <Text style={styles.value}>{plan === "pro" ? "ReceiptAI Pro" : "ReceiptAI Free"}</Text>
         </View>
 
+        <Pressable style={styles.button} onPress={() => router.push("/(main)/subscription")}>
+          <Text style={styles.buttonText}>Subscription</Text>
+        </Pressable>
+
         <Pressable style={styles.button} onPress={onLogout} disabled={busy}>
-          {busy ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Logout</Text>
-          )}
+          {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Logout</Text>}
         </Pressable>
 
         <Pressable
@@ -84,8 +106,7 @@ export default function SettingsScreen() {
         </Pressable>
 
         <Text style={styles.note}>
-          Apple requires an in-app option to delete the account. This button
-          permanently deletes the signed-in user.
+          Apple requires an in-app option to delete the account. This permanently deletes the signed-in user.
         </Text>
       </View>
 
@@ -143,25 +164,10 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: {
-    flex: 1,
-    backgroundColor: "#071019",
-  },
-  container: {
-    flex: 1,
-    padding: 18,
-  },
-  title: {
-    color: "#fff",
-    fontSize: 24,
-    fontWeight: "800",
-    marginTop: 12,
-  },
-  sub: {
-    color: "rgba(255,255,255,0.65)",
-    marginTop: 4,
-    marginBottom: 20,
-  },
+  page: { flex: 1, backgroundColor: "#071019" },
+  container: { flex: 1, padding: 18 },
+  title: { color: "#fff", fontSize: 24, fontWeight: "800", marginTop: 12 },
+  sub: { color: "rgba(255,255,255,0.65)", marginTop: 4, marginBottom: 20 },
   card: {
     backgroundColor: "rgba(255,255,255,0.06)",
     borderRadius: 16,
@@ -189,14 +195,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#24344A",
     marginBottom: 12,
   },
-  deleteButton: {
-    backgroundColor: "#B91C1C",
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "800",
-  },
+  deleteButton: { backgroundColor: "#B91C1C" },
+  buttonText: { color: "#fff", fontSize: 15, fontWeight: "800" },
   note: {
     color: "rgba(255,255,255,0.55)",
     fontSize: 12,
@@ -220,11 +220,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.10)",
   },
-  modalTitle: {
-    color: "#fff",
-    fontSize: 20,
-    fontWeight: "800",
-  },
+  modalTitle: { color: "#fff", fontSize: 20, fontWeight: "800" },
   modalText: {
     color: "rgba(255,255,255,0.70)",
     marginTop: 8,
@@ -238,11 +234,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
-  modalActions: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 16,
-  },
+  modalActions: { flexDirection: "row", gap: 10, marginTop: 16 },
   modalBtn: {
     flex: 1,
     height: 48,
@@ -250,18 +242,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  cancelBtn: {
-    backgroundColor: "#22314A",
-  },
-  confirmDeleteBtn: {
-    backgroundColor: "#DC2626",
-  },
-  cancelText: {
-    color: "#fff",
-    fontWeight: "800",
-  },
-  confirmDeleteText: {
-    color: "#fff",
-    fontWeight: "800",
-  },
+  cancelBtn: { backgroundColor: "#22314A" },
+  confirmDeleteBtn: { backgroundColor: "#DC2626" },
+  cancelText: { color: "#fff", fontWeight: "800" },
+  confirmDeleteText: { color: "#fff", fontWeight: "800" },
 });

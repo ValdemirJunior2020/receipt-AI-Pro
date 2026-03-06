@@ -11,8 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../../src/lib/firebase/client";
+import { login } from "../../src/lib/firebase/auth";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -26,10 +25,11 @@ export default function LoginScreen() {
   async function onLogin() {
     try {
       setBusy(true);
-      await signInWithEmailAndPassword(auth, email.trim(), password);
+      await login(email, password);
       router.replace("/dashboard");
     } catch (err: any) {
-      Alert.alert("Login failed", err?.message ?? "Unknown error");
+      Alert.alert("Login failed", err?.message || "Something went wrong.");
+      console.error("LOGIN ERROR:", err);
     } finally {
       setBusy(false);
     }
@@ -106,16 +106,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#1f2a44",
   },
-  title: {
-    color: "white",
-    fontSize: 22,
-    fontWeight: "800",
-    marginBottom: 2,
-  },
-  subtitle: {
-    color: "#c7d2fe",
-    marginBottom: 16,
-  },
+  title: { color: "white", fontSize: 22, fontWeight: "800", marginBottom: 2 },
+  subtitle: { color: "#c7d2fe", marginBottom: 16 },
   label: {
     color: "#cbd5e1",
     marginTop: 10,
@@ -140,24 +132,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
   },
-  buttonPressed: {
-    opacity: 0.9,
-  },
-  buttonDisabled: {
-    opacity: 0.45,
-  },
-  buttonText: {
-    color: "white",
-    fontWeight: "800",
-    fontSize: 15,
-  },
+  buttonPressed: { opacity: 0.9 },
+  buttonDisabled: { opacity: 0.45 },
+  buttonText: { color: "white", fontWeight: "800", fontSize: 15 },
   footerText: {
     color: "#94a3b8",
     marginTop: 14,
     textAlign: "center",
   },
-  link: {
-    color: "#a5b4fc",
-    fontWeight: "800",
-  },
+  link: { color: "#a5b4fc", fontWeight: "800" },
 });
