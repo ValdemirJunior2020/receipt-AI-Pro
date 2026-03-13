@@ -29,7 +29,7 @@ export async function setLanguage(lang: 'en' | 'pt-BR' | 'es') {
   i18n
     .use(initReactI18next)
     .init({
-      compatibilityJSON: 'v3',
+      compatibilityJSON: "v4",
       resources: {
         en: { translation: en },
         'pt-BR': { translation: ptBR },

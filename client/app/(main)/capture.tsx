@@ -18,7 +18,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { auth } from "../../src/lib/firebase/client";
 import { getScanGate, saveReceipt } from "../../src/lib/firebase/receipts";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:5050";
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 type ReceiptResponse = {
   merchant: string | null;

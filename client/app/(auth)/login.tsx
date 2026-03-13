@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { login } from "../../src/lib/firebase/auth";
+import { APPLE_REVIEW_EMAIL, APPLE_REVIEW_PASSWORD } from "../../src/lib/reviewAccess";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -35,6 +36,11 @@ export default function LoginScreen() {
     }
   }
 
+  function fillAppleReviewLogin() {
+    setEmail(APPLE_REVIEW_EMAIL);
+    setPassword(APPLE_REVIEW_PASSWORD);
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.page}
@@ -43,6 +49,10 @@ export default function LoginScreen() {
       <View style={styles.card}>
         <Text style={styles.title}>ReceiptAI Pro</Text>
         <Text style={styles.subtitle}>Sign in</Text>
+
+        <Pressable onPress={fillAppleReviewLogin} style={styles.reviewButton}>
+          <Text style={styles.reviewButtonText}>Use Apple Review Demo Login</Text>
+        </Pressable>
 
         <Text style={styles.label}>Email</Text>
         <TextInput
@@ -108,6 +118,18 @@ const styles = StyleSheet.create({
   },
   title: { color: "white", fontSize: 22, fontWeight: "800", marginBottom: 2 },
   subtitle: { color: "#c7d2fe", marginBottom: 16 },
+  reviewButton: {
+    backgroundColor: "#1d4ed8",
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  reviewButtonText: {
+    color: "white",
+    fontWeight: "800",
+    fontSize: 14,
+  },
   label: {
     color: "#cbd5e1",
     marginTop: 10,

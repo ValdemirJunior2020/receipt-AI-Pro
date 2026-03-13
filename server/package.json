@@ -1,11 +1,13 @@
 
 {
   "name": "receiptai-server",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "dev": "node index.js"
+    "start": "node index.js",
+    "dev": "nodemon index.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

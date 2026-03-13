@@ -230,9 +230,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   logo: {
-    width: 28,
-    height: 28,
-    marginBottom: 4,
+    width: 64,  // Increased from 54
+    height: 64, // Increased from 54
+    marginBottom: 6,
   },
   headerTitle: {
     color: "#fff",
