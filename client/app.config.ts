@@ -4,7 +4,7 @@ import type { ExpoConfig } from "expo/config";
 const config: ExpoConfig = {
   name: "ReceiptAI Pro",
   slug: "client",
-  version: "1.0.0",
+  version: "1.0.1",
   orientation: "portrait",
   scheme: "receiptai-pro",
   icon: "./assets/icon.png",
@@ -27,7 +27,7 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.infojr.83.receiptaipro",
-    buildNumber: "3",
+    buildNumber: "5",
     infoPlist: {
       NSCameraUsageDescription:
         "ReceiptAI Pro uses your camera to scan receipts and analyze your expenses.",
@@ -37,7 +37,7 @@ const config: ExpoConfig = {
 
   android: {
     package: "com.infojr.83.receiptaipro",
-    versionCode: 1,
+    versionCode: 5,
     adaptiveIcon: {
       foregroundImage: "./assets/icon.png",
       backgroundColor: "#071019",
