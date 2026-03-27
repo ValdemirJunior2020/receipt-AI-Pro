@@ -27,8 +27,6 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "../../src/lib/firebase/client";
 
-const USER_AVATAR = "https://randomuser.me/api/portraits/men/32.jpg";
-
 type ReceiptCategory =
   | "Groceries"
   | "Dining Out"
@@ -109,17 +107,47 @@ function formatShortDate(value: unknown) {
 function getCategoryPresentation(category: ReceiptCategory) {
   switch (category) {
     case "Groceries":
-      return { label: "GROCERIES", iconType: "ion" as const, icon: "basket", iconBg: "#00E676" };
+      return {
+        label: "GROCERIES",
+        iconType: "ion" as const,
+        icon: "basket",
+        iconBg: "#00E676",
+      };
     case "Dining Out":
-      return { label: "DINING OUT", iconType: "ion" as const, icon: "restaurant", iconBg: "#E65100" };
+      return {
+        label: "DINING OUT",
+        iconType: "ion" as const,
+        icon: "restaurant",
+        iconBg: "#E65100",
+      };
     case "Transport":
-      return { label: "TRANSPORT", iconType: "fa5" as const, icon: "car-side", iconBg: "#000000" };
+      return {
+        label: "TRANSPORT",
+        iconType: "fa5" as const,
+        icon: "car-side",
+        iconBg: "#000000",
+      };
     case "Utilities":
-      return { label: "UTILITIES", iconType: "mci" as const, icon: "flash", iconBg: "#1976D2" };
+      return {
+        label: "UTILITIES",
+        iconType: "mci" as const,
+        icon: "flash",
+        iconBg: "#1976D2",
+      };
     case "Shopping":
-      return { label: "SHOPPING", iconType: "ion" as const, icon: "bag-handle", iconBg: "#8B5CF6" };
+      return {
+        label: "SHOPPING",
+        iconType: "ion" as const,
+        icon: "bag-handle",
+        iconBg: "#8B5CF6",
+      };
     default:
-      return { label: "OTHER", iconType: "ion" as const, icon: "help-circle", iconBg: "#64748B" };
+      return {
+        label: "OTHER",
+        iconType: "ion" as const,
+        icon: "help-circle",
+        iconBg: "#64748B",
+      };
   }
 }
 
@@ -181,7 +209,6 @@ export default function DashboardScreen() {
   }, []);
 
   const latestReceipt = receipts[0] ?? null;
-
   const recentRows = useMemo(() => receipts.slice(0, 4), [receipts]);
 
   return (
@@ -189,7 +216,7 @@ export default function DashboardScreen() {
       <View style={styles.safeTop} />
 
       <View style={styles.header}>
-        <Image source={{ uri: USER_AVATAR }} style={styles.avatar} />
+        <View style={styles.headerSideSpacer} />
 
         <View style={styles.headerTitleWrap}>
           <Image
@@ -202,10 +229,7 @@ export default function DashboardScreen() {
           </Text>
         </View>
 
-        <Pressable style={styles.bell} onPress={() => {}}>
-          <Ionicons name="notifications" size={20} color="#fff" />
-          <View style={styles.dot} />
-        </Pressable>
+        <View style={styles.headerSideSpacer} />
       </View>
 
       <Pressable
@@ -362,14 +386,12 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     gap: 12,
   },
-  avatar: {
+  headerSideSpacer: {
     width: 38,
     height: 38,
-    borderRadius: 19,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.85)",
   },
   headerTitleWrap: {
     flex: 1,
@@ -387,27 +409,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   headerAccent: { color: "#00E676" },
-
-  bell: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    position: "relative",
-  },
-  dot: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: "#FF5252",
-  },
 
   scanCard: {
     marginHorizontal: 18,
