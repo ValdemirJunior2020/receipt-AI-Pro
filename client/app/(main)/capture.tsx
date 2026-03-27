@@ -1,5 +1,5 @@
-﻿// File: C:\Users\Junior\Downloads\receipt-AI-Pro-fixed\receipt-AI-Pro\client\app\(main)\capture.tsx
-import React, { useEffect, useRef, useState } from "react";
+﻿// File: C:\Users\Valdemir Goncalves\Desktop\Projetos-2026\ReceiptAI-Pro\client\app\(main)\capture.tsx
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -50,6 +50,8 @@ type ReceiptResponse = {
   line_items: ReceiptLineItem[];
   raw_text: string | null;
 };
+
+type ScannerStatus = "idle" | "steady" | "detected";
 
 const VALID_CATEGORIES: ReceiptCategory[] = [
   "Groceries",
@@ -113,114 +115,204 @@ function normalizeReceiptResponse(payload: any): ReceiptResponse {
   };
 }
 
-function ScanOverlay() {
-  const scanLineAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(0.9)).current;
-  const glowAnim = useRef(new Animated.Value(0.45)).current;
+function getStatusColor(status: ScannerStatus) {
+  if (status === "detected") return "#00E676";
+  if (status === "steady") return "#FACC15";
+  return "#00E676";
+}
+
+function getStatusLabel(status: ScannerStatus) {
+  if (status === "detected") return "Receipt detected";
+  if (status === "steady") return "Hold steady";
+  return "Center the receipt and keep it flat";
+}
+
+function getStatusIcon(status: ScannerStatus) {
+  if (status === "detected") return "checkmark-circle";
+  if (status === "steady") return "scan";
+  return "scan-outline";
+}
+
+function ScannerOverlay({
+  status,
+  flashOpacity,
+}: {
+  status: ScannerStatus;
+  flashOpacity: Animated.Value;
+}) {
+  const scanLine = useRef(new Animated.Value(0)).current;
+  const glow = useRef(new Animated.Value(0.45)).current;
+  const framePulse = useRef(new Animated.Value(1)).current;
+
+  const accentColor = getStatusColor(status);
 
   useEffect(() => {
-    Animated.loop(
+    const scanLoop = Animated.loop(
       Animated.sequence([
-        Animated.timing(scanLineAnim, {
+        Animated.timing(scanLine, {
           toValue: 1,
           duration: 2200,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
-        Animated.timing(scanLineAnim, {
+        Animated.timing(scanLine, {
           toValue: 0,
           duration: 0,
           useNativeDriver: true,
         }),
       ])
-    ).start();
+    );
 
-    Animated.loop(
+    const glowLoop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.02,
-          duration: 900,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 0.98,
-          duration: 900,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowAnim, {
-          toValue: 0.9,
+        Animated.timing(glow, {
+          toValue: 0.95,
           duration: 1200,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: false,
         }),
-        Animated.timing(glowAnim, {
+        Animated.timing(glow, {
           toValue: 0.35,
           duration: 1200,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: false,
         }),
       ])
-    ).start();
-  }, [glowAnim, pulseAnim, scanLineAnim]);
+    );
 
-  const translateY = scanLineAnim.interpolate({
+    const pulseLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(framePulse, {
+          toValue: 1.015,
+          duration: 900,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(framePulse, {
+          toValue: 0.99,
+          duration: 900,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    scanLoop.start();
+    glowLoop.start();
+    pulseLoop.start();
+
+    return () => {
+      scanLoop.stop();
+      glowLoop.stop();
+      pulseLoop.stop();
+    };
+  }, [framePulse, glow, scanLine]);
+
+  const lineTranslateY = scanLine.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 235],
+    outputRange: [10, 250],
   });
 
   return (
     <View pointerEvents="none" style={styles.overlayRoot}>
-      <View style={styles.overlayTop} />
-      <View style={styles.overlayMiddle}>
-        <View style={styles.overlaySide} />
+      <Animated.View
+        style={[
+          styles.captureFlash,
+          {
+            opacity: flashOpacity,
+            backgroundColor:
+              status === "detected"
+                ? "rgba(0, 230, 118, 0.24)"
+                : "rgba(255,255,255,0.12)",
+          },
+        ]}
+      />
+
+      <View style={styles.overlayTopMask} />
+
+      <View style={styles.overlayCenterRow}>
+        <View style={styles.overlaySideMask} />
 
         <Animated.View
           style={[
-            styles.scanWindowWrap,
+            styles.overlayFrameWrap,
             {
-              transform: [{ scale: pulseAnim }],
+              transform: [{ scale: framePulse }],
             },
           ]}
         >
           <Animated.View
             style={[
-              styles.scanWindowGlow,
+              styles.overlayGlow,
               {
-                opacity: glowAnim,
+                opacity: glow,
+                backgroundColor:
+                  status === "steady"
+                    ? "rgba(250, 204, 21, 0.10)"
+                    : "rgba(0, 230, 118, 0.08)",
               },
             ]}
           />
 
-          <View style={styles.scanWindow}>
-            <Corner position="topLeft" />
-            <Corner position="topRight" />
-            <Corner position="bottomLeft" />
-            <Corner position="bottomRight" />
+          <View
+            style={[
+              styles.overlayFrame,
+              {
+                borderColor:
+                  status === "steady"
+                    ? "rgba(250, 204, 21, 0.45)"
+                    : "rgba(255,255,255,0.14)",
+              },
+            ]}
+          >
+            <Corner position="topLeft" color={accentColor} />
+            <Corner position="topRight" color={accentColor} />
+            <Corner position="bottomLeft" color={accentColor} />
+            <Corner position="bottomRight" color={accentColor} />
+
+            <View style={styles.gridWrap}>
+              <View style={styles.gridCol} />
+              <View style={styles.gridCol} />
+            </View>
+            <View style={styles.gridWrapHorizontal}>
+              <View style={styles.gridRow} />
+              <View style={styles.gridRow} />
+            </View>
 
             <Animated.View
               style={[
                 styles.scanLine,
                 {
-                  transform: [{ translateY }],
+                  backgroundColor: accentColor,
+                  shadowColor: accentColor,
+                  transform: [{ translateY: lineTranslateY }],
                 },
               ]}
             />
           </View>
         </Animated.View>
 
-        <View style={styles.overlaySide} />
+        <View style={styles.overlaySideMask} />
       </View>
-      <View style={styles.overlayBottom}>
-        <View style={styles.hintPill}>
-          <Ionicons name="scan-outline" size={16} color="#00E676" />
-          <Text style={styles.hintText}>Center the receipt inside the frame</Text>
+
+      <View style={styles.overlayBottomMask}>
+        <View
+          style={[
+            styles.tipPill,
+            {
+              borderColor:
+                status === "steady"
+                  ? "rgba(250, 204, 21, 0.30)"
+                  : "rgba(0,230,118,0.18)",
+            },
+          ]}
+        >
+          <Ionicons
+            name={getStatusIcon(status)}
+            size={16}
+            color={accentColor}
+          />
+          <Text style={styles.tipText}>{getStatusLabel(status)}</Text>
         </View>
       </View>
     </View>
@@ -229,20 +321,26 @@ function ScanOverlay() {
 
 function Corner({
   position,
+  color,
 }: {
   position: "topLeft" | "topRight" | "bottomLeft" | "bottomRight";
+  color: string;
 }) {
-  const isTop = position.includes("top");
-  const isLeft = position.includes("Left");
+  const isTop = position === "topLeft" || position === "topRight";
+  const isLeft = position === "topLeft" || position === "bottomLeft";
+
+  const transforms = [];
+  if (!isLeft) transforms.push({ scaleX: -1 });
+  if (!isTop) transforms.push({ scaleY: -1 });
 
   return (
     <View
       style={[
         styles.corner,
+        { borderColor: color, shadowColor: color },
         isTop ? { top: 10 } : { bottom: 10 },
         isLeft ? { left: 10 } : { right: 10 },
-        !isLeft && { transform: [{ scaleX: -1 }] },
-        !isTop && { transform: [{ scaleY: -1 }, ...(isLeft ? [] : [{ scaleX: -1 }]) ] },
+        transforms.length ? { transform: transforms } : null,
       ]}
     />
   );
@@ -254,6 +352,28 @@ export default function CaptureScreen() {
   const [busy, setBusy] = useState(false);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [result, setResult] = useState<ReceiptResponse | null>(null);
+  const [torchEnabled, setTorchEnabled] = useState(false);
+  const [scannerStatus, setScannerStatus] = useState<ScannerStatus>("idle");
+
+  const flashOpacity = useRef(new Animated.Value(0)).current;
+  const cameraRatio = useMemo(() => "16:9", []);
+
+  async function runCaptureFlash() {
+    return new Promise<void>((resolve) => {
+      Animated.sequence([
+        Animated.timing(flashOpacity, {
+          toValue: 1,
+          duration: 140,
+          useNativeDriver: true,
+        }),
+        Animated.timing(flashOpacity, {
+          toValue: 0,
+          duration: 260,
+          useNativeDriver: true,
+        }),
+      ]).start(() => resolve());
+    });
+  }
 
   async function onTakeAndAnalyze() {
     try {
@@ -299,6 +419,9 @@ export default function CaptureScreen() {
 
       setBusy(true);
       setResult(null);
+      setScannerStatus("steady");
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       const photo = await (cameraRef.current as any).takePictureAsync({
         quality: 1,
@@ -307,6 +430,9 @@ export default function CaptureScreen() {
 
       if (!photo?.uri) throw new Error("Photo capture failed.");
       setPreviewUri(photo.uri);
+
+      setScannerStatus("detected");
+      await runCaptureFlash();
 
       const form = new FormData();
       form.append(
@@ -379,6 +505,7 @@ export default function CaptureScreen() {
       Alert.alert("Capture failed", err?.message || "Something went wrong.");
     } finally {
       setBusy(false);
+      setScannerStatus("idle");
     }
   }
 
@@ -392,7 +519,7 @@ export default function CaptureScreen() {
 
   if (!permission.granted) {
     return (
-      <LinearGradient colors={["#0A1520", "#071019"]} style={styles.page}>
+      <LinearGradient colors={["#09131E", "#061019"]} style={styles.page}>
         <View style={styles.centerCard}>
           <Text style={styles.title}>Camera Access</Text>
           <Text style={styles.sub}>
@@ -407,7 +534,7 @@ export default function CaptureScreen() {
   }
 
   return (
-    <LinearGradient colors={["#0A1520", "#071019"]} style={styles.page}>
+    <LinearGradient colors={["#09131E", "#061019"]} style={styles.page}>
       <Modal visible={busy} transparent animationType="fade">
         <View style={styles.loadingOverlay}>
           <View style={styles.loadingCard}>
@@ -425,13 +552,53 @@ export default function CaptureScreen() {
           <Pressable style={styles.backBtn} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={20} color="#fff" />
           </Pressable>
+
           <Text style={styles.title}>Scan Receipt</Text>
-          <View style={{ width: 40 }} />
+
+          <Pressable
+            style={[styles.iconBtn, torchEnabled && styles.iconBtnActive]}
+            onPress={() => setTorchEnabled((prev) => !prev)}
+          >
+            <Ionicons
+              name={torchEnabled ? "flash" : "flash-off"}
+              size={18}
+              color={torchEnabled ? "#071019" : "#fff"}
+            />
+          </Pressable>
         </View>
 
         <View style={styles.cameraShell}>
-          <CameraView ref={cameraRef as any} style={styles.camera} facing="back" />
-          <ScanOverlay />
+          <CameraView
+            ref={cameraRef as any}
+            style={styles.camera}
+            facing="back"
+            ratio={cameraRatio as any}
+            enableTorch={torchEnabled}
+          />
+          <ScannerOverlay status={scannerStatus} flashOpacity={flashOpacity} />
+
+          <View style={styles.cameraTopBadges}>
+            <View style={styles.premiumBadge}>
+              <Ionicons
+                name={
+                  scannerStatus === "detected"
+                    ? "checkmark-circle"
+                    : scannerStatus === "steady"
+                      ? "radio-button-on"
+                      : "sparkles-outline"
+                }
+                size={14}
+                color={getStatusColor(scannerStatus)}
+              />
+              <Text style={styles.premiumBadgeText}>
+                {scannerStatus === "detected"
+                  ? "Receipt detected"
+                  : scannerStatus === "steady"
+                    ? "Hold steady"
+                    : "Smart Scan"}
+              </Text>
+            </View>
+          </View>
         </View>
 
         <Pressable
@@ -500,6 +667,179 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.1)",
     padding: 18,
   },
+  header: {
+    paddingTop: Platform.OS === "web" ? 8 : 36,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 18,
+  },
+  backBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+  },
+  iconBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+  },
+  iconBtnActive: {
+    backgroundColor: "#00E676",
+    borderColor: "#00E676",
+  },
+  title: { color: "#fff", fontSize: 22, fontWeight: "800" },
+  sub: {
+    color: "rgba(255,255,255,0.7)",
+    marginTop: 8,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  cameraShell: {
+    height: 500,
+    borderRadius: 24,
+    overflow: "hidden",
+    backgroundColor: "#0b1320",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+    marginBottom: 16,
+    position: "relative",
+  },
+  camera: { flex: 1 },
+  cameraTopBadges: {
+    position: "absolute",
+    top: 14,
+    left: 14,
+    right: 14,
+    flexDirection: "row",
+    justifyContent: "flex-start",
+  },
+  premiumBadge: {
+    minHeight: 32,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    backgroundColor: "rgba(6,15,24,0.72)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  premiumBadgeText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  overlayRoot: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  captureFlash: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  overlayTopMask: {
+    height: 66,
+    backgroundColor: "rgba(2,10,18,0.50)",
+  },
+  overlayCenterRow: {
+    flex: 1,
+    flexDirection: "row",
+  },
+  overlaySideMask: {
+    width: 16,
+    backgroundColor: "rgba(2,10,18,0.42)",
+  },
+  overlayBottomMask: {
+    height: 110,
+    backgroundColor: "rgba(2,10,18,0.56)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 18,
+  },
+  overlayFrameWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  overlayGlow: {
+    position: "absolute",
+    width: "88%",
+    height: 290,
+    borderRadius: 24,
+  },
+  overlayFrame: {
+    width: "88%",
+    height: 290,
+    borderRadius: 24,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  gridWrap: {
+    ...StyleSheet.absoluteFillObject,
+    flexDirection: "row",
+    justifyContent: "space-evenly",
+    alignItems: "stretch",
+  },
+  gridCol: {
+    width: 1,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    marginVertical: 16,
+  },
+  gridWrapHorizontal: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "space-evenly",
+    alignItems: "stretch",
+  },
+  gridRow: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    marginHorizontal: 16,
+  },
+  scanLine: {
+    position: "absolute",
+    left: 14,
+    right: 14,
+    height: 3,
+    borderRadius: 999,
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  corner: {
+    position: "absolute",
+    width: 42,
+    height: 42,
+    borderTopWidth: 4,
+    borderLeftWidth: 4,
+    borderTopLeftRadius: 14,
+    shadowOpacity: 0.6,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  tipPill: {
+    minHeight: 38,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: "rgba(8,20,30,0.88)",
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  tipText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "700",
+  },
   loadingOverlay: {
     flex: 1,
     backgroundColor: "rgba(2, 10, 18, 0.78)",
@@ -535,129 +875,9 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     textAlign: "center",
   },
-  header: {
-    paddingTop: Platform.OS === "web" ? 8 : 36,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 18,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)",
-  },
-  title: { color: "#fff", fontSize: 22, fontWeight: "800" },
-  sub: {
-    color: "rgba(255,255,255,0.7)",
-    marginTop: 8,
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  cameraShell: {
-    height: 470,
-    borderRadius: 22,
-    overflow: "hidden",
-    backgroundColor: "#0b1320",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    marginBottom: 16,
-    position: "relative",
-  },
-  camera: { flex: 1 },
-  overlayRoot: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  overlayTop: {
-    height: 56,
-    backgroundColor: "rgba(2,10,18,0.46)",
-  },
-  overlayMiddle: {
-    flex: 1,
-    flexDirection: "row",
-  },
-  overlaySide: {
-    width: 18,
-    backgroundColor: "rgba(2,10,18,0.42)",
-  },
-  overlayBottom: {
-    height: 96,
-    backgroundColor: "rgba(2,10,18,0.5)",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 18,
-  },
-  scanWindowWrap: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  scanWindowGlow: {
-    position: "absolute",
-    width: "88%",
-    height: 270,
-    borderRadius: 22,
-    backgroundColor: "rgba(0,230,118,0.08)",
-  },
-  scanWindow: {
-    width: "88%",
-    height: 270,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-    overflow: "hidden",
-    backgroundColor: "transparent",
-  },
-  scanLine: {
-    position: "absolute",
-    left: 14,
-    right: 14,
-    top: 12,
-    height: 3,
-    borderRadius: 6,
-    backgroundColor: "#00E676",
-    shadowColor: "#00E676",
-    shadowOpacity: 0.8,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 0 },
-  },
-  corner: {
-    position: "absolute",
-    width: 38,
-    height: 38,
-    borderTopWidth: 4,
-    borderLeftWidth: 4,
-    borderColor: "#00E676",
-    borderTopLeftRadius: 12,
-    shadowColor: "#00E676",
-    shadowOpacity: 0.55,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 0 },
-  },
-  hintPill: {
-    minHeight: 38,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    backgroundColor: "rgba(8,20,30,0.88)",
-    borderWidth: 1,
-    borderColor: "rgba(0,230,118,0.18)",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  hintText: {
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: "700",
-  },
   primaryBtn: {
-    height: 52,
-    borderRadius: 14,
+    height: 54,
+    borderRadius: 16,
     backgroundColor: "#00E676",
     alignItems: "center",
     justifyContent: "center",
@@ -671,8 +891,8 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   secondaryBtn: {
-    height: 48,
-    borderRadius: 14,
+    height: 50,
+    borderRadius: 16,
     backgroundColor: "#24344A",
     alignItems: "center",
     justifyContent: "center",
