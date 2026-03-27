@@ -8,7 +8,6 @@ import Purchases, {
 } from "react-native-purchases";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebase/client";
-import { APPLE_REVIEW_EMAIL } from "./reviewAccess";
 
 const RC_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY || "";
 const ENTITLEMENT_ID =
@@ -18,10 +17,6 @@ let configuredForUserId: string | null = null;
 
 export function getEntitlementId() {
   return ENTITLEMENT_ID;
-}
-
-function isAppleReviewEmail(email?: string | null) {
-  return (email || "").trim().toLowerCase() === APPLE_REVIEW_EMAIL.toLowerCase();
 }
 
 async function syncPlanToFirestore(
@@ -35,7 +30,6 @@ async function syncPlanToFirestore(
       email: email ?? null,
       plan: isPro ? "pro" : "free",
       subscriptionStatus: isPro ? "active" : "inactive",
-      isAppleReviewAccount: isAppleReviewEmail(email),
       updatedAt: new Date().toISOString(),
     },
     { merge: true }
@@ -64,12 +58,6 @@ async function ensureConfigured(appUserID?: string) {
 export async function loadCurrentOffering(
   uid?: string
 ): Promise<PurchasesOffering | null> {
-  const currentEmail = auth.currentUser?.email;
-
-  if (isAppleReviewEmail(currentEmail)) {
-    return null;
-  }
-
   const ok = await ensureConfigured(uid);
   if (!ok) return null;
 
@@ -82,11 +70,6 @@ export async function refreshPlanFromRevenueCat(uid: string): Promise<{
   customerInfo: CustomerInfo | null;
 }> {
   const currentEmail = auth.currentUser?.email;
-
-  if (isAppleReviewEmail(currentEmail)) {
-    await syncPlanToFirestore(uid, currentEmail, true);
-    return { isPro: true, customerInfo: null };
-  }
 
   const ok = await ensureConfigured(uid);
   if (!ok) {
@@ -111,11 +94,6 @@ export async function buyPackage(
 }> {
   const currentEmail = auth.currentUser?.email;
 
-  if (isAppleReviewEmail(currentEmail)) {
-    await syncPlanToFirestore(uid, currentEmail, true);
-    return { isPro: true, customerInfo: null };
-  }
-
   const ok = await ensureConfigured(uid);
   if (!ok) {
     throw new Error("RevenueCat is not configured in this build.");
@@ -134,11 +112,6 @@ export async function restoreUserPurchases(uid: string): Promise<{
   customerInfo: CustomerInfo | null;
 }> {
   const currentEmail = auth.currentUser?.email;
-
-  if (isAppleReviewEmail(currentEmail)) {
-    await syncPlanToFirestore(uid, currentEmail, true);
-    return { isPro: true, customerInfo: null };
-  }
 
   const ok = await ensureConfigured(uid);
   if (!ok) {

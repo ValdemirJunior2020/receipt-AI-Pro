@@ -1,9 +1,11 @@
 ﻿// File: client/app/(main)/capture.tsx
+
 import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -54,14 +56,8 @@ export default function CaptureScreen() {
           "Free limit reached",
           "You used all 5 free scans this month. Upgrade to Pro to unlock unlimited scans.",
           [
-            {
-              text: "Maybe later",
-              style: "cancel",
-            },
-            {
-              text: "Upgrade",
-              onPress: () => router.push("/(main)/subscription"),
-            },
+            { text: "Maybe later", style: "cancel" },
+            { text: "Upgrade", onPress: () => router.push("/(main)/subscription") },
           ]
         );
         return;
@@ -77,8 +73,16 @@ export default function CaptureScreen() {
 
       if (!permission?.granted) {
         const res = await requestPermission();
+
         if (!res.granted) {
-          Alert.alert("Permission required", "Camera permission is required.");
+          Alert.alert(
+            "Camera access needed",
+            "Enable camera access in Settings to scan receipts.",
+            [
+              { text: "Not now", style: "cancel" },
+              { text: "Open Settings", onPress: () => Linking.openSettings() },
+            ]
+          );
           return;
         }
       }
@@ -161,12 +165,13 @@ export default function CaptureScreen() {
     return (
       <LinearGradient colors={["#0A1520", "#071019"]} style={styles.page}>
         <View style={styles.centerCard}>
-          <Text style={styles.title}>Camera Permission</Text>
+          <Text style={styles.title}>Camera Access</Text>
           <Text style={styles.sub}>
-            We need camera access to scan and analyze receipts.
+            ReceiptAI Pro uses the camera to scan and analyze receipts.
           </Text>
+
           <Pressable style={styles.primaryBtn} onPress={requestPermission}>
-            <Text style={styles.primaryBtnText}>Grant Permission</Text>
+            <Text style={styles.primaryBtnText}>Continue</Text>
           </Pressable>
         </View>
       </LinearGradient>
@@ -261,81 +266,96 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 18,
+    marginBottom: 14,
   },
   backBtn: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.1)",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)",
   },
-  title: { color: "#fff", fontSize: 22, fontWeight: "800" },
+  title: { color: "#fff", fontSize: 24, fontWeight: "800" },
   sub: {
-    color: "rgba(255,255,255,0.7)",
-    marginTop: 8,
-    marginBottom: 16,
+    color: "rgba(255,255,255,0.72)",
+    fontSize: 14,
     lineHeight: 20,
+    marginTop: 8,
+    marginBottom: 18,
   },
   cameraWrap: {
-    height: 380,
-    borderRadius: 18,
+    height: 420,
+    borderRadius: 22,
     overflow: "hidden",
-    backgroundColor: "#0b1320",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    marginBottom: 16,
     position: "relative",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#111827",
   },
   camera: { flex: 1 },
   frame: {
     position: "absolute",
-    left: 16,
-    right: 16,
-    top: 16,
-    bottom: 16,
+    top: "12%",
+    left: "10%",
+    width: "80%",
+    height: "62%",
     borderWidth: 2,
-    borderRadius: 16,
-    borderColor: "rgba(0,230,118,0.55)",
+    borderColor: "rgba(255,255,255,0.95)",
+    borderRadius: 24,
   },
   primaryBtn: {
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: "#00E676",
+    marginTop: 18,
+    backgroundColor: "#A3E635",
+    borderRadius: 16,
+    paddingVertical: 15,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 12,
   },
   primaryBtnText: {
     color: "#071019",
-    fontSize: 15,
     fontWeight: "900",
+    fontSize: 15,
   },
   secondaryBtn: {
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: "#24344A",
+    marginTop: 12,
+    borderRadius: 16,
+    paddingVertical: 14,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(255,255,255,0.04)",
   },
   secondaryBtnText: {
-    color: "#fff",
+    color: "#ffffff",
+    fontWeight: "700",
     fontSize: 14,
-    fontWeight: "800",
   },
   card: {
-    backgroundColor: "rgba(255,255,255,0.06)",
+    marginTop: 18,
     borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)",
     padding: 16,
-    marginBottom: 14,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
   },
-  cardTitle: { color: "#fff", fontSize: 16, fontWeight: "800", marginBottom: 10 },
-  preview: { width: "100%", height: 220, borderRadius: 12, backgroundColor: "#111" },
-  item: { color: "rgba(255,255,255,0.8)", fontSize: 13, marginBottom: 6 },
+  cardTitle: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "800",
+    marginBottom: 10,
+  },
+  preview: {
+    width: "100%",
+    height: 300,
+    borderRadius: 14,
+    resizeMode: "cover",
+  },
+  item: {
+    color: "rgba(255,255,255,0.84)",
+    fontSize: 14,
+    lineHeight: 21,
+    marginBottom: 6,
+  },
 });

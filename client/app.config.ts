@@ -12,41 +12,51 @@ const config: ExpoConfig = {
   splash: {
     image: "./assets/splash-icon.png",
     resizeMode: "contain",
-    backgroundColor: "#071019"
+    backgroundColor: "#071019",
   },
   assetBundlePatterns: ["**/*"],
   platforms: ["ios", "android", "web"],
-  plugins: ["expo-router"],
+
+  plugins: [
+    "expo-router",
+    "expo-localization",
+    "expo-secure-store",
+    "expo-web-browser",
+  ],
+
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.infojr.83.receiptaipro",
-    buildNumber: "1",
+    buildNumber: "3",
     infoPlist: {
       NSCameraUsageDescription:
         "ReceiptAI Pro uses your camera to scan receipts and analyze your expenses.",
-      ITSAppUsesNonExemptEncryption: false
-    }
+      ITSAppUsesNonExemptEncryption: false,
+    },
   },
+
   android: {
     package: "com.infojr.83.receiptaipro",
     versionCode: 1,
     adaptiveIcon: {
       foregroundImage: "./assets/icon.png",
-      backgroundColor: "#071019"
-    }
+      backgroundColor: "#071019",
+    },
   },
+
   web: {
     bundler: "metro",
-    favicon: "./assets/icon.png"
+    favicon: "./assets/icon.png",
   },
+
   extra: {
     router: {
-      root: "app"
+      root: "app",
     },
     eas: {
-      projectId: "20c3535a-98e6-4b4d-b578-7c329635e8c6"
-    }
-  }
+      projectId: "20c3535a-98e6-4b4d-b578-7c329635e8c6",
+    },
+  },
 };
 
 export default config;

@@ -16,8 +16,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import type { PurchasesPackage } from "react-native-purchases";
 import { auth } from "../../src/lib/firebase/client";
-import { useSessionStore } from "../../src/store/session";
-import { APPLE_REVIEW_EMAIL } from "../../src/lib/reviewAccess";
 import {
   buyPackage,
   getEntitlementId,
@@ -27,8 +25,6 @@ import {
 } from "../../src/lib/purchases";
 
 export default function SubscriptionScreen() {
-  const user = useSessionStore((s) => s.user);
-
   const [loading, setLoading] = useState(true);
   const [busyPackageId, setBusyPackageId] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false);
@@ -37,11 +33,6 @@ export default function SubscriptionScreen() {
   const [errorText, setErrorText] = useState("");
 
   const entitlementId = useMemo(() => getEntitlementId(), []);
-
-  const isAppleReviewUser = useMemo(() => {
-    const email = user?.email?.trim().toLowerCase();
-    return email === APPLE_REVIEW_EMAIL.toLowerCase();
-  }, [user?.email]);
 
   const loadScreen = useCallback(async () => {
     try {
@@ -57,16 +48,6 @@ export default function SubscriptionScreen() {
       setLoading(true);
       setErrorText("");
 
-      if (
-        auth.currentUser?.email?.trim().toLowerCase() ===
-        APPLE_REVIEW_EMAIL.toLowerCase()
-      ) {
-        setIsPro(true);
-        setPackages([]);
-        setErrorText("");
-        return;
-      }
-
       const offering = await loadCurrentOffering(uid);
       const state = await refreshPlanFromRevenueCat(uid);
 
@@ -75,7 +56,7 @@ export default function SubscriptionScreen() {
 
       if (!offering || !offering.availablePackages?.length) {
         setErrorText(
-          "No subscription products are available right now. Please verify the App Store product and RevenueCat offering."
+          "No subscription products are available right now. Check the App Store product, RevenueCat product mapping, entitlement, and current offering."
         );
       }
     } catch (error: any) {
@@ -109,9 +90,7 @@ export default function SubscriptionScreen() {
     } catch (error: any) {
       console.error("PURCHASE ERROR:", error);
 
-      if (error?.userCancelled) {
-        return;
-      }
+      if (error?.userCancelled) return;
 
       Alert.alert(
         "Purchase failed",
@@ -146,61 +125,6 @@ export default function SubscriptionScreen() {
     } finally {
       setRestoring(false);
     }
-  }
-
-  if (isAppleReviewUser) {
-    return (
-      <LinearGradient colors={["#08121d", "#0d1b2a"]} style={styles.page}>
-        <ScrollView contentContainerStyle={styles.content}>
-          <View style={styles.header}>
-            <Pressable style={styles.iconBtn} onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={20} color="#ffffff" />
-            </Pressable>
-
-            <Text style={styles.headerTitle}>Subscription</Text>
-
-            <View style={styles.headerSpacer} />
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.eyebrow}>Current access</Text>
-            <Text style={styles.mainTitle}>ReceiptAI Pro Active</Text>
-            <Text style={styles.description}>
-              Apple Review demo account has full Pro access enabled. No purchase is
-              required for this review account.
-            </Text>
-
-            <View style={styles.featureRow}>
-              <Ionicons name="checkmark-circle" size={18} color="#4ade80" />
-              <Text style={styles.featureText}>Unlimited receipt scans</Text>
-            </View>
-
-            <View style={styles.featureRow}>
-              <Ionicons name="checkmark-circle" size={18} color="#4ade80" />
-              <Text style={styles.featureText}>AI insights and summaries</Text>
-            </View>
-
-            <View style={styles.featureRow}>
-              <Ionicons name="checkmark-circle" size={18} color="#4ade80" />
-              <Text style={styles.featureText}>Budget tracking tools</Text>
-            </View>
-
-            <View style={styles.featureRow}>
-              <Ionicons name="checkmark-circle" size={18} color="#4ade80" />
-              <Text style={styles.featureText}>Export tools</Text>
-            </View>
-
-            <View style={styles.centerBox}>
-              <Text style={styles.helperText}>Your Pro access is already active.</Text>
-            </View>
-
-            <Text style={styles.footnote}>
-              Review account: {APPLE_REVIEW_EMAIL}
-            </Text>
-          </View>
-        </ScrollView>
-      </LinearGradient>
-    );
   }
 
   return (
@@ -320,9 +244,7 @@ export default function SubscriptionScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: {
-    flex: 1,
-  },
+  page: { flex: 1 },
   content: {
     width: "100%",
     maxWidth: 760,
@@ -419,43 +341,45 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 18,
     fontWeight: "800",
+    marginBottom: 4,
   },
   packagePrice: {
-    color: "#4ade80",
-    fontSize: 18,
+    color: "#A3E635",
+    fontSize: 22,
     fontWeight: "900",
-    marginTop: 6,
+    marginBottom: 8,
   },
   packageDescription: {
-    color: "rgba(255,255,255,0.76)",
+    color: "rgba(255,255,255,0.72)",
     fontSize: 13,
     lineHeight: 18,
-    marginTop: 8,
     marginBottom: 14,
   },
   buyBtn: {
-    minHeight: 52,
+    backgroundColor: "#A3E635",
+    minHeight: 48,
     borderRadius: 14,
-    backgroundColor: "#4ade80",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 16,
   },
-  buyBtnText: {
-    color: "#08121d",
-    fontSize: 15,
-    fontWeight: "900",
-  },
   disabledBtn: {
     opacity: 0.6,
   },
+  buyBtnText: {
+    color: "#08121d",
+    fontSize: 14,
+    fontWeight: "900",
+  },
   restoreBtn: {
     marginTop: 18,
-    minHeight: 50,
     borderRadius: 14,
-    backgroundColor: "#223247",
+    minHeight: 48,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
   },
   disabledRestoreBtn: {
     opacity: 0.6,
@@ -466,10 +390,10 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   footnote: {
-    marginTop: 14,
-    color: "rgba(255,255,255,0.54)",
+    marginTop: 16,
+    color: "rgba(255,255,255,0.45)",
     fontSize: 12,
-    lineHeight: 18,
+    textAlign: "center",
   },
   errorBox: {
     marginTop: 18,
