@@ -1,5 +1,4 @@
 // File: client/app/(main)/subscription.tsx
-
 import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -15,7 +14,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import type { PurchasesPackage } from "react-native-purchases";
-import { auth } from "../../src/lib/firebase/client";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "../../src/lib/firebase/client";
 import {
   buyPackage,
   getEntitlementId,
@@ -24,6 +24,48 @@ import {
   restoreUserPurchases,
 } from "../../src/lib/purchases";
 
+type ProfileAccess = {
+  isPro: boolean;
+  plan: string;
+  subscriptionStatus: string;
+  email: string;
+};
+
+async function getProfileAccess(uid: string): Promise<ProfileAccess> {
+  const ref = doc(db, "users", uid);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) {
+    return {
+      isPro: false,
+      plan: "free",
+      subscriptionStatus: "inactive",
+      email: "",
+    };
+  }
+
+  const data = snap.data() as any;
+
+  const plan =
+    typeof data?.plan === "string" ? data.plan.toLowerCase().trim() : "free";
+
+  const subscriptionStatus =
+    typeof data?.subscriptionStatus === "string"
+      ? data.subscriptionStatus.toLowerCase().trim()
+      : "inactive";
+
+  const email = typeof data?.email === "string" ? data.email : "";
+
+  const isPro = plan === "pro" && subscriptionStatus === "active";
+
+  return {
+    isPro,
+    plan,
+    subscriptionStatus,
+    email,
+  };
+}
+
 export default function SubscriptionScreen() {
   const [loading, setLoading] = useState(true);
   const [busyPackageId, setBusyPackageId] = useState<string | null>(null);
@@ -31,6 +73,10 @@ export default function SubscriptionScreen() {
   const [isPro, setIsPro] = useState(false);
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
   const [errorText, setErrorText] = useState("");
+  const [accountEmail, setAccountEmail] = useState("");
+  const [accountPlan, setAccountPlan] = useState("free");
+  const [accountSubscriptionStatus, setAccountSubscriptionStatus] =
+    useState("inactive");
 
   const entitlementId = useMemo(() => getEntitlementId(), []);
 
@@ -42,17 +88,39 @@ export default function SubscriptionScreen() {
         setErrorText("Please sign in first.");
         setPackages([]);
         setIsPro(false);
+        setAccountEmail("");
+        setAccountPlan("free");
+        setAccountSubscriptionStatus("inactive");
         return;
       }
 
       setLoading(true);
       setErrorText("");
 
-      const offering = await loadCurrentOffering(uid);
-      const state = await refreshPlanFromRevenueCat(uid);
+      const profile = await getProfileAccess(uid);
 
-      setIsPro(state.isPro);
+      setAccountEmail(profile.email);
+      setAccountPlan(profile.plan);
+      setAccountSubscriptionStatus(profile.subscriptionStatus);
+
+      // Firestore profile is the first source of truth for already-active Pro access.
+      if (profile.isPro) {
+        setIsPro(true);
+        setPackages([]);
+        setErrorText("");
+        return;
+      }
+
+      const offering = await loadCurrentOffering(uid);
+      const revenueCatState = await refreshPlanFromRevenueCat(uid);
+
+      setIsPro(revenueCatState.isPro);
       setPackages(offering?.availablePackages ?? []);
+
+      if (revenueCatState.isPro) {
+        setErrorText("");
+        return;
+      }
 
       if (!offering || !offering.availablePackages?.length) {
         setErrorText(
@@ -174,6 +242,21 @@ export default function SubscriptionScreen() {
               <ActivityIndicator color="#4ade80" />
               <Text style={styles.helperText}>Loading subscription options...</Text>
             </View>
+          ) : isPro ? (
+            <View style={styles.activeBox}>
+              <Text style={styles.activeTitle}>Pro access is already active</Text>
+              <Text style={styles.activeText}>
+                This account already has access to premium features.
+              </Text>
+
+              {!!accountEmail ? (
+                <Text style={styles.activeMeta}>Account: {accountEmail}</Text>
+              ) : null}
+
+              <Text style={styles.activeMeta}>
+                Plan: {accountPlan} · Status: {accountSubscriptionStatus}
+              </Text>
+            </View>
           ) : packages.length > 0 ? (
             <View style={styles.packageList}>
               {packages.map((pkg) => {
@@ -192,25 +275,19 @@ export default function SubscriptionScreen() {
                     </Text>
 
                     <Pressable
-                      style={[styles.buyBtn, (busy || isPro) && styles.disabledBtn]}
+                      style={[styles.buyBtn, busy && styles.disabledBtn]}
                       onPress={() => handleBuy(pkg)}
-                      disabled={busy || isPro}
+                      disabled={busy}
                     >
                       {busy ? (
                         <ActivityIndicator color="#08121d" />
                       ) : (
-                        <Text style={styles.buyBtnText}>
-                          {isPro ? "Already Active" : "Subscribe with Apple"}
-                        </Text>
+                        <Text style={styles.buyBtnText}>Subscribe with Apple</Text>
                       )}
                     </Pressable>
                   </View>
                 );
               })}
-            </View>
-          ) : isPro ? (
-            <View style={styles.centerBox}>
-              <Text style={styles.helperText}>Your Pro access is already active.</Text>
             </View>
           ) : (
             <View style={styles.errorBox}>
@@ -325,6 +402,30 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 13,
     textAlign: "center",
+  },
+  activeBox: {
+    marginTop: 18,
+    backgroundColor: "rgba(20, 83, 45, 0.35)",
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "rgba(74, 222, 128, 0.35)",
+  },
+  activeTitle: {
+    color: "#ffffff",
+    fontSize: 15,
+    fontWeight: "800",
+    marginBottom: 6,
+  },
+  activeText: {
+    color: "rgba(255,255,255,0.86)",
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  activeMeta: {
+    color: "rgba(255,255,255,0.68)",
+    fontSize: 12,
+    marginTop: 8,
   },
   packageList: {
     marginTop: 18,
