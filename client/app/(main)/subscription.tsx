@@ -3,7 +3,6 @@ import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -20,6 +19,7 @@ import type { PurchasesPackage } from "react-native-purchases";
 import { doc, getDoc } from "firebase/firestore";
 
 import { auth, db } from "../../src/lib/firebase/client";
+import { APP_RESTORE_COPY } from "../../src/config/legal";
 import {
   buyPackage,
   getEntitlementId,
@@ -27,12 +27,7 @@ import {
   refreshPlanFromRevenueCat,
   restoreUserPurchases,
 } from "../../src/lib/purchases";
-import {
-  APP_PRIVACY_POLICY_URL,
-  APP_RESTORE_COPY,
-  APP_SUBSCRIPTION_DISCLOSURE,
-  APP_TERMS_OF_USE_URL,
-} from "../../src/config/legal";
+import SubscriptionDetails from "../../src/ui/SubscriptionDetails";
 
 type ProfileAccess = {
   isPro: boolean;
@@ -40,136 +35,6 @@ type ProfileAccess = {
   subscriptionStatus: string;
   email: string;
 };
-
-type SubscriptionPeriodLike = {
-  unit?: string;
-  value?: number;
-  numberOfUnits?: number;
-};
-
-function normalizeCurrency(value: number, currencyCode?: string) {
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currencyCode || "USD",
-    }).format(value);
-  } catch {
-    return `$${value.toFixed(2)}`;
-  }
-}
-
-function getSubscriptionPeriod(product: any): SubscriptionPeriodLike | null {
-  const raw =
-    product?.subscriptionPeriod ??
-    product?.defaultOption?.subscriptionPeriod ??
-    product?.subscriptionOptions?.[0]?.subscriptionPeriod ??
-    null;
-
-  if (!raw) return null;
-
-  return {
-    unit: typeof raw?.unit === "string" ? raw.unit.toLowerCase() : undefined,
-    value:
-      typeof raw?.value === "number"
-        ? raw.value
-        : typeof raw?.numberOfUnits === "number"
-          ? raw.numberOfUnits
-          : undefined,
-    numberOfUnits:
-      typeof raw?.numberOfUnits === "number" ? raw.numberOfUnits : undefined,
-  };
-}
-
-function getPackageTitle(pkg: PurchasesPackage) {
-  const product: any = pkg.product;
-  const title =
-    typeof product?.title === "string" && product.title.trim().length > 0
-      ? product.title.trim()
-      : "ReceiptAI Pro";
-
-  return title.replace(/\s*\(.*?\)\s*$/, "").trim();
-}
-
-function getPackageDurationLabel(pkg: PurchasesPackage) {
-  const product: any = pkg.product;
-  const period = getSubscriptionPeriod(product);
-
-  if (!period?.unit) {
-    const identifier = pkg.identifier.toLowerCase();
-    if (identifier.includes("annual") || identifier.includes("year")) {
-      return "Yearly";
-    }
-    if (identifier.includes("month")) {
-      return "Monthly";
-    }
-    if (identifier.includes("week")) {
-      return "Weekly";
-    }
-    return "Subscription";
-  }
-
-  const value = period.value || period.numberOfUnits || 1;
-
-  switch (period.unit) {
-    case "day":
-    case "days":
-      return value === 7 ? "Weekly" : `${value} Day${value > 1 ? "s" : ""}`;
-    case "week":
-    case "weeks":
-      return value === 1 ? "Weekly" : `${value} Weeks`;
-    case "month":
-    case "months":
-      return value === 1 ? "Monthly" : `${value} Months`;
-    case "year":
-    case "years":
-      return value === 1 ? "Yearly" : `${value} Years`;
-    default:
-      return "Subscription";
-  }
-}
-
-function getPricePerUnitLabel(pkg: PurchasesPackage) {
-  const product: any = pkg.product;
-  const price =
-    typeof product?.price === "number"
-      ? product.price
-      : typeof product?.priceAmountMicros === "number"
-        ? product.priceAmountMicros / 1_000_000
-        : null;
-
-  if (price == null) return null;
-
-  const currencyCode =
-    typeof product?.currencyCode === "string" ? product.currencyCode : "USD";
-
-  const period = getSubscriptionPeriod(product);
-  const value = period?.value || period?.numberOfUnits || 1;
-  const unit = period?.unit;
-
-  if (!unit) return null;
-
-  if (unit === "year" || unit === "years") {
-    const monthlyEquivalent = price / (12 * value);
-    return `${normalizeCurrency(monthlyEquivalent, currencyCode)}/month equivalent`;
-  }
-
-  if (unit === "month" || unit === "months") {
-    const monthlyEquivalent = price / value;
-    return `${normalizeCurrency(monthlyEquivalent, currencyCode)}/month`;
-  }
-
-  if (unit === "week" || unit === "weeks") {
-    const weeklyEquivalent = price / value;
-    return `${normalizeCurrency(weeklyEquivalent, currencyCode)}/week`;
-  }
-
-  if (unit === "day" || unit === "days") {
-    const dailyEquivalent = price / value;
-    return `${normalizeCurrency(dailyEquivalent, currencyCode)}/day`;
-  }
-
-  return null;
-}
 
 async function getProfileAccess(uid: string): Promise<ProfileAccess> {
   const ref = doc(db, "users", uid);
@@ -221,20 +86,6 @@ export default function SubscriptionScreen() {
 
   const entitlementId = useMemo(() => getEntitlementId(), []);
 
-  const openUrl = useCallback(async (url: string, label: string) => {
-    try {
-      const supported = await Linking.canOpenURL(url);
-      if (!supported) {
-        Alert.alert("Link unavailable", `${label} could not be opened right now.`);
-        return;
-      }
-
-      await Linking.openURL(url);
-    } catch (error: any) {
-      Alert.alert("Link unavailable", error?.message || `Could not open ${label}.`);
-    }
-  }, []);
-
   const loadScreen = useCallback(async () => {
     try {
       const uid = auth.currentUser?.uid;
@@ -253,30 +104,29 @@ export default function SubscriptionScreen() {
       setErrorText("");
 
       const profile = await getProfileAccess(uid);
+      const offering = await loadCurrentOffering(uid);
+      const availablePackages = offering?.availablePackages ?? [];
 
       setAccountEmail(profile.email);
       setAccountPlan(profile.plan);
       setAccountSubscriptionStatus(profile.subscriptionStatus);
+      setPackages(availablePackages);
 
       if (profile.isPro) {
         setIsPro(true);
-        setPackages([]);
         setErrorText("");
         return;
       }
 
-      const offering = await loadCurrentOffering(uid);
       const revenueCatState = await refreshPlanFromRevenueCat(uid);
-
       setIsPro(revenueCatState.isPro);
-      setPackages(offering?.availablePackages ?? []);
 
       if (revenueCatState.isPro) {
         setErrorText("");
         return;
       }
 
-      if (!offering || !offering.availablePackages?.length) {
+      if (!availablePackages.length) {
         setErrorText(
           "No subscription products are available right now. Check the App Store product, RevenueCat product mapping, entitlement, and current offering."
         );
@@ -425,13 +275,13 @@ export default function SubscriptionScreen() {
               </Text>
             </View>
 
-            <View style={[styles.legalCard, !isDark && styles.legalCardLight]}>
-              <Text style={[styles.legalHeading, !isDark && styles.textDark]}>
+            <View style={[styles.noticeCard, !isDark && styles.noticeCardLight]}>
+              <Text style={[styles.noticeHeading, !isDark && styles.textDark]}>
                 Subscription information
               </Text>
-              <Text style={[styles.legalText, !isDark && styles.textMutedDark]}>
-                Reviewers can verify the subscription title, duration, price, and legal
-                links below before purchase.
+              <Text style={[styles.noticeText, !isDark && styles.textMutedDark]}>
+                The package title, duration, price, Privacy Policy, and Terms of
+                Use are shown directly above the purchase button.
               </Text>
             </View>
 
@@ -442,125 +292,70 @@ export default function SubscriptionScreen() {
                   Loading subscription options...
                 </Text>
               </View>
-            ) : isPro ? (
-              <View style={styles.activeBox}>
-                <Text style={styles.activeTitle}>Pro access is already active</Text>
-                <Text style={styles.activeText}>
-                  This account already has access to premium features.
-                </Text>
+            ) : (
+              <>
+                {isPro ? (
+                  <View style={styles.activeBox}>
+                    <Text style={styles.activeTitle}>Pro access is already active</Text>
+                    <Text style={styles.activeText}>
+                      This account already has access to premium features.
+                    </Text>
 
-                {!!accountEmail ? (
-                  <Text style={styles.activeMeta}>Account: {accountEmail}</Text>
+                    {!!accountEmail ? (
+                      <Text style={styles.activeMeta}>Account: {accountEmail}</Text>
+                    ) : null}
+
+                    <Text style={styles.activeMeta}>
+                      Plan: {accountPlan} · Status: {accountSubscriptionStatus}
+                    </Text>
+                  </View>
                 ) : null}
 
-                <Text style={styles.activeMeta}>
-                  Plan: {accountPlan} · Status: {accountSubscriptionStatus}
-                </Text>
-              </View>
-            ) : packages.length > 0 ? (
-              <View style={styles.packageList}>
-                {packages.map((pkg) => {
-                  const busy = busyPackageId === pkg.identifier;
-                  const durationLabel = getPackageDurationLabel(pkg);
-                  const perUnitLabel = getPricePerUnitLabel(pkg);
+                {packages.length > 0 ? (
+                  <View style={styles.packageList}>
+                    {packages.map((pkg) => {
+                      const busy = busyPackageId === pkg.identifier;
+                      const disabled = isPro || busyPackageId !== null;
 
-                  return (
-                    <View
-                      key={pkg.identifier}
-                      style={[styles.packageCard, !isDark && styles.packageCardLight]}
-                      accessible
-                      accessibilityRole="summary"
-                      accessibilityLabel={`${getPackageTitle(pkg)}, ${durationLabel}, ${
-                        (pkg.product as any)?.priceString || "Price unavailable"
-                      }`}
-                    >
-                      <View style={styles.planBadgeRow}>
-                        <Text style={styles.planBadge}>ReceiptAI Pro</Text>
-                        <Text style={styles.durationBadge}>{durationLabel}</Text>
-                      </View>
-
-                      <Text style={[styles.packageTitle, !isDark && styles.textDark]}>
-                        {getPackageTitle(pkg)}
-                      </Text>
-
-                      <Text style={styles.packagePrice}>
-                        {(pkg.product as any)?.priceString || "Price unavailable"}
-                      </Text>
-
-                      {!!perUnitLabel ? (
-                        <Text style={styles.packagePerUnit}>{perUnitLabel}</Text>
-                      ) : null}
-
-                      <Text
-                        style={[
-                          styles.packageDescription,
-                          !isDark && styles.textMutedDark,
-                        ]}
-                      >
-                        {(pkg.product as any)?.description ||
-                          "Auto-renewable subscription for ReceiptAI Pro."}
-                      </Text>
-
-                      <Pressable
-                        style={[styles.buyBtn, busy && styles.disabledBtn]}
-                        onPress={() => handleBuy(pkg)}
-                        disabled={busy}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Subscribe to ${getPackageTitle(
-                          pkg
-                        )}, ${durationLabel}, ${
-                          (pkg.product as any)?.priceString || ""
-                        }`}
-                      >
-                        {busy ? (
-                          <ActivityIndicator color="#08121D" />
-                        ) : (
-                          <Text style={styles.buyBtnText}>Subscribe with Apple</Text>
-                        )}
-                      </Pressable>
-                    </View>
-                  );
-                })}
-              </View>
-            ) : (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorTitle}>Subscription unavailable</Text>
-                <Text style={styles.errorText}>
-                  {errorText ||
-                    "No products were returned from RevenueCat. Check your Apple product and offering setup."}
-                </Text>
-              </View>
+                      return (
+                        <SubscriptionDetails
+                          key={pkg.identifier}
+                          pkg={pkg}
+                          isDark={isDark}
+                          busy={busy}
+                          disabled={disabled}
+                          subscribeButtonText={
+                            isPro
+                              ? "Already active on this account"
+                              : "Subscribe with Apple"
+                          }
+                          onPressSubscribe={isPro ? undefined : () => handleBuy(pkg)}
+                        />
+                      );
+                    })}
+                  </View>
+                ) : isPro ? (
+                  <View style={styles.secondaryNoticeBox}>
+                    <Text style={styles.secondaryNoticeTitle}>
+                      Subscription already active
+                    </Text>
+                    <Text style={styles.secondaryNoticeText}>
+                      This account is active, but no package metadata was returned in
+                      the current offering. Verify the product is attached to the
+                      active RevenueCat offering before resubmitting.
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.errorBox}>
+                    <Text style={styles.errorTitle}>Subscription unavailable</Text>
+                    <Text style={styles.errorText}>
+                      {errorText ||
+                        "No products were returned from RevenueCat. Check your Apple product and offering setup."}
+                    </Text>
+                  </View>
+                )}
+              </>
             )}
-
-            <View style={[styles.linksSection, !isDark && styles.linksSectionLight]}>
-              <Text style={[styles.linksHeading, !isDark && styles.textDark]}>
-                Legal
-              </Text>
-
-              <Pressable
-                style={styles.linkButton}
-                onPress={() => openUrl(APP_PRIVACY_POLICY_URL, "Privacy Policy")}
-                accessibilityRole="link"
-                accessibilityLabel="Open Privacy Policy"
-              >
-                <Ionicons name="shield-checkmark-outline" size={18} color="#0F172A" />
-                <Text style={styles.linkButtonText}>Privacy Policy</Text>
-              </Pressable>
-
-              <Pressable
-                style={styles.linkButton}
-                onPress={() => openUrl(APP_TERMS_OF_USE_URL, "Terms of Use")}
-                accessibilityRole="link"
-                accessibilityLabel="Open Terms of Use and EULA"
-              >
-                <Ionicons name="document-text-outline" size={18} color="#0F172A" />
-                <Text style={styles.linkButtonText}>Terms of Use / EULA</Text>
-              </Pressable>
-
-              <Text style={[styles.disclosureText, !isDark && styles.textMutedDark]}>
-                {APP_SUBSCRIPTION_DISCLOSURE}
-              </Text>
-            </View>
 
             <Pressable
               style={[styles.restoreBtn, restoring && styles.disabledRestoreBtn]}
@@ -682,7 +477,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontWeight: "600",
   },
-  legalCard: {
+  noticeCard: {
     marginTop: 10,
     marginBottom: 8,
     borderRadius: 16,
@@ -691,17 +486,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(163,230,53,0.18)",
   },
-  legalCardLight: {
+  noticeCardLight: {
     backgroundColor: "rgba(163,230,53,0.12)",
     borderColor: "rgba(132,204,22,0.25)",
   },
-  legalHeading: {
+  noticeHeading: {
     color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "800",
     marginBottom: 6,
   },
-  legalText: {
+  noticeText: {
     color: "rgba(255,255,255,0.78)",
     fontSize: 13,
     lineHeight: 19,
@@ -743,124 +538,24 @@ const styles = StyleSheet.create({
   },
   packageList: {
     marginTop: 18,
-    gap: 14,
   },
-  packageCard: {
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderRadius: 18,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-  },
-  packageCardLight: {
-    backgroundColor: "#F8FAFC",
-    borderColor: "#E2E8F0",
-  },
-  planBadgeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 10,
-    flexWrap: "wrap",
-  },
-  planBadge: {
-    backgroundColor: "#0EA5E9",
-    color: "#FFFFFF",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    overflow: "hidden",
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  durationBadge: {
-    backgroundColor: "#E2E8F0",
-    color: "#0F172A",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    overflow: "hidden",
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  packageTitle: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "800",
-    marginBottom: 4,
-  },
-  packagePrice: {
-    color: "#A3E635",
-    fontSize: 24,
-    fontWeight: "900",
-    marginBottom: 4,
-  },
-  packagePerUnit: {
-    color: "#C4F46A",
-    fontSize: 13,
-    fontWeight: "700",
-    marginBottom: 8,
-  },
-  packageDescription: {
-    color: "rgba(255,255,255,0.75)",
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 14,
-  },
-  buyBtn: {
-    backgroundColor: "#A3E635",
-    minHeight: 52,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-  },
-  disabledBtn: {
-    opacity: 0.6,
-  },
-  buyBtnText: {
-    color: "#08121D",
-    fontSize: 15,
-    fontWeight: "900",
-  },
-  linksSection: {
+  secondaryNoticeBox: {
     marginTop: 18,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderRadius: 18,
-    padding: 15,
+    backgroundColor: "rgba(37,99,235,0.24)",
+    borderRadius: 16,
+    padding: 14,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(96,165,250,0.35)",
   },
-  linksSectionLight: {
-    backgroundColor: "#F8FAFC",
-    borderColor: "#E2E8F0",
-  },
-  linksHeading: {
+  secondaryNoticeTitle: {
     color: "#FFFFFF",
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "800",
-    marginBottom: 12,
+    marginBottom: 6,
   },
-  linkButton: {
-    minHeight: 48,
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginBottom: 10,
-    paddingHorizontal: 14,
-  },
-  linkButtonText: {
-    color: "#0F172A",
-    fontSize: 14,
-    fontWeight: "800",
-  },
-  disclosureText: {
-    marginTop: 6,
-    color: "rgba(255,255,255,0.74)",
-    fontSize: 12,
+  secondaryNoticeText: {
+    color: "rgba(255,255,255,0.84)",
+    fontSize: 13,
     lineHeight: 18,
   },
   restoreBtn: {
