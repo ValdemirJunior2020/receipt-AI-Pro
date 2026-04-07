@@ -1,4 +1,4 @@
-// File: client/src/ui/SubscriptionDetails.tsx
+// client/src/ui/SubscriptionDetails.tsx
 import React, { useCallback } from "react";
 import {
   ActivityIndicator,
@@ -194,7 +194,7 @@ export default function SubscriptionDetails({
 
       <View style={[styles.infoCard, !isDark && styles.infoCardLight]}>
         <Text style={[styles.infoHeading, !isDark && styles.textDark]}>
-          Required subscription details
+          Subscription information
         </Text>
 
         <View style={styles.infoRow}>

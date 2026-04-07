@@ -1,4 +1,4 @@
-// File: client/app/(main)/subscription.tsx
+// client/app/(main)/subscription.tsx
 import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
